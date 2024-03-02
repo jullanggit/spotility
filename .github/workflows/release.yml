@@ -31,10 +31,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           targets: x86_64-unknown-linux-gnu
-      # - name: install dependencies
-      # run: |
-      #   sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libwayland-client0 libwayland-dev
-
+      - name: install dependencies
+        run: |
+          sudo apt-get update; sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+          
       - name: Build
         run: |
           cargo build --release --target x86_64-unknown-linux-gnu
@@ -43,7 +43,6 @@ jobs:
         run: |
           mkdir linux
           cp target/x86_64-unknown-linux-gnu/release/${{ env.binary }} linux/
-          cp -r assets linux/
 
       - name: Package as a zip
         working-directory: ./linux
@@ -89,7 +88,6 @@ jobs:
         run: |
           mkdir windows
           cp target/x86_64-pc-windows-msvc/release/${{ env.binary }}.exe windows/
-          cp -r assets windows/
 
       - name: Package as a zip
         run: |
@@ -138,7 +136,6 @@ jobs:
         run: |
           mkdir -p ${{ env.binary }}.app/Contents/MacOS
           cp target/x86_64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
-          cp -r assets ${{ env.binary }}.app/Contents/MacOS/
           hdiutil create -fs HFS+ -volname "${{ env.binary }}" -srcfolder ${{ env.binary }}.app ${{ env.binary }}-macOS-intel.dmg
 
       - name: Upload binaries to artifacts
@@ -184,7 +181,6 @@ jobs:
         run: |
           mkdir -p ${{ env.binary }}.app/Contents/MacOS
           cp target/aarch64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
-          cp -r assets ${{ env.binary }}.app/Contents/MacOS/
           hdiutil create -fs HFS+ -volname "${{ env.binary }}-macOS-apple-silicon" -srcfolder ${{ env.binary }}.app ${{ env.binary }}-macOS-apple-silicon.dmg
 
       - name: Upload binaries to artifacts
