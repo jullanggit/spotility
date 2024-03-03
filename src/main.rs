@@ -121,12 +121,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .expect("db-path has default value");
 
             // get ratings db
-            println!("Loading ratings db");
-            let ratings = load_or_create_hashmap(db_path.clone())?;
-            if ratings.len() == 0 {
-                println!("Error loading database");
-                return Ok(());
-            }
+            let ratings = match load_hashmap(db_path.clone()) {
+                Ok(hashmap) => hashmap,
+                Err(e) => {
+                    println!("Error loading database: {e}");
+                    return Ok(());
+                }
+            };
 
             let mut ratings_vec: Vec<_> = ratings.into_iter().collect();
             // sort the vec by time added (unstable, because faster)
@@ -138,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             });
 
             let ratings_len = ratings_vec.len();
-            let step = 10 as f64 / ratings_len as f64;
+            let step = 10.0 / ratings_len as f64;
 
             // creating weights
             println!("Creating weights");
@@ -232,16 +233,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
 
             // get ratings db
-            let mut ratings = load_or_create_hashmap(db_path.clone())?;
+            let mut ratings = match load_hashmap(db_path.clone()) {
+                Ok(hashmap) => hashmap,
+                Err(e) => {
+                    println!("Error loading database: {e}");
+                    return Ok(());
+                }
+            };
 
             // print change
             println!(
                 "{} -> {}",
                 make_readable(
-                    ratings
-                        .get(currently_playing_song.id().unwrap().id())
-                        .unwrap()
-                        .rating
+                    match ratings.get(currently_playing_song.id().unwrap().id()) {
+                        // Print rating if song is found
+                        Some(time_rating) => time_rating.rating,
+                        // Print error message and exit if song is not found
+                        None => {
+                            println!("Error fetching song from local database.");
+                            return Ok(());
+                        }
+                    }
                 ),
                 make_readable(rating)
             );
@@ -274,8 +286,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // get liked songs up until the limit
             let liked_songs_to_limit = get_liked_songs(spotify, *limit).await.unwrap();
 
-            // get ratings database
+            // get ratings db
             let mut ratings = load_or_create_hashmap(db_path.clone())?;
+
+            if ratings.is_empty() {
+                println!("No local database, creating new one");
+            }
 
             for liked_song in liked_songs_to_limit {
                 let _ = ratings
@@ -304,6 +320,10 @@ fn make_readable(input: f32) -> String {
 fn load_or_create_hashmap(
     file_path: String,
 ) -> Result<HashMap<String, TimeRating>, Box<dyn Error>> {
+    load_hashmap(file_path).map_or(Ok(HashMap::new()), Ok)
+}
+
+fn load_hashmap(file_path: String) -> Result<HashMap<String, TimeRating>, Box<dyn Error>> {
     match File::open(file_path) {
         Ok(file) => {
             // If the file exists, attempt to read from it
@@ -314,7 +334,7 @@ fn load_or_create_hashmap(
             Ok(serde_json::from_str(&file_contents)?)
         }
         // If the file doesnt exist, create a new HashMap
-        Err(_) => Ok(HashMap::new()),
+        Err(e) => Err(Box::new(e)),
     }
 }
 
@@ -478,7 +498,7 @@ async fn populate_playlist(
             let playlist_id_clone = playlist_id.clone();
 
             // make a owned version of the chunk
-            let chunk_owned = chunk.iter().cloned().collect::<Vec<TrackId<'static>>>(); // Clone the chunk here
+            let chunk_owned = chunk.to_vec(); // Clone the chunk here
 
             spawn(async move {
                 let mut retries = 0;
