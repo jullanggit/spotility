@@ -5,6 +5,11 @@ on:
     tags:
       - '*'
   workflow_dispatch:
+    inputs:
+      tagName:
+        description: 'Tag Name to Process'     
+        required: true
+        default: '1.0.0' # Example default value
 
 env:
   # update with the name of the main binary
