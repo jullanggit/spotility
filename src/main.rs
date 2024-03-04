@@ -481,11 +481,13 @@ async fn empty_playlist(
     }
 }
 
+/// Populates the given playlist with the given song id's
 async fn populate_playlist(
     spotify: AuthCodeSpotify,
     playlist_id: PlaylistId<'static>,
     song_ids: Vec<TrackId<'static>>,
 ) -> Result<(), Box<dyn Error + Send>> {
+    // Given by the spotify API docs
     let batch_size = 100;
 
     let max_retries = 3;
@@ -498,9 +500,9 @@ async fn populate_playlist(
             let playlist_id_clone = playlist_id.clone();
 
             // make a owned version of the chunk
-            let chunk_owned = chunk.to_vec(); // Clone the chunk here
+            let chunk_owned = chunk.to_vec();
 
-            spawn(async move {
+            async move {
                 let mut retries = 0;
                 loop {
                     let chunk_vec = chunk_owned
@@ -520,19 +522,15 @@ async fn populate_playlist(
                         Err(e) => return Err(Box::new(e) as Box<dyn Error + Send>),
                     }
                 }
-            })
+            }
         })
         .collect();
 
     let results = join_all(tasks).await;
     for result in results {
         match result {
-            Ok(Ok(())) => {
+            Ok(()) => {
                 // If the task succeeded, you can process the successful addition here.
-            }
-            Ok(Err(e)) => {
-                // Handle errors from the Spotify API calls or task execution
-                println!("Failed to add items to the playlist: {e}");
             }
             Err(e) => {
                 println!("Failed to add items to the playlist: {e}");
